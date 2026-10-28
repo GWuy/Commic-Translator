@@ -1,10 +1,9 @@
 import { translationSchema, type Message, type Translation } from "../types";
 import { cacheKey, clearCache, getCached, putCached } from "../lib/cache";
+import { getSettings } from "../lib/settings";
 
-const API = "http://127.0.0.1:8000/api/v1/translate/image";
-const HEALTH = "http://127.0.0.1:8000/health";
 const inFlight = new Map<string, Promise<Translation>>();
-let modelState: { version: string; checked: number } | undefined;
+let modelState: { endpoint: string; version: string; checked: number } | undefined;
 let active = 0;
 const waiting: Array<() => void> = [];
 class ImageAccessError extends Error {}
@@ -18,23 +17,24 @@ async function slot<T>(work: () => Promise<T>): Promise<T> {
     waiting.shift()?.();
   }
 }
-async function modelVersion(): Promise<string> {
-  if (modelState && Date.now() - modelState.checked < 5 * 60_000)
+async function modelVersion(endpoint: string): Promise<string> {
+  if (modelState?.endpoint === endpoint && Date.now() - modelState.checked < 5 * 60_000)
     return modelState.version;
   let version = "gemini-2.5-flash";
   try {
-    const response = await fetch(HEALTH, { signal: AbortSignal.timeout(3000) });
+    const response = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(3000) });
     if (response.ok) {
       const data = (await response.json()) as { model?: unknown };
       if (typeof data.model === "string" && data.model.length < 100)
         version = data.model;
-      await chrome.storage.local.set({ modelVersion: version });
+      await chrome.storage.local.set({ modelVersion: { endpoint, version } });
     }
   } catch {
     const stored = await chrome.storage.local.get("modelVersion");
-    if (typeof stored.modelVersion === "string") version = stored.modelVersion;
+    if (stored.modelVersion?.endpoint === endpoint && typeof stored.modelVersion.version === "string")
+      version = stored.modelVersion.version;
   }
-  modelState = { version, checked: Date.now() };
+  modelState = { endpoint, version, checked: Date.now() };
   return version;
 }
 async function download(url: string, imageData?: string): Promise<Blob> {
@@ -101,11 +101,13 @@ async function download(url: string, imageData?: string): Promise<Blob> {
 async function translate(
   message: Extract<Message, { type: "TRANSLATE" }>,
 ): Promise<Translation> {
+  const settings = await getSettings();
+  const endpoint = settings.apiBaseUrl.replace(/\/+$/, "");
   const key = cacheKey(
-    message.contentId || message.url,
+    `${endpoint}:${message.contentId || message.url}`,
     message.sourceLanguage,
     message.targetLanguage,
-    await modelVersion(),
+    await modelVersion(endpoint),
   );
   const cached = await getCached(key);
   if (cached) return cached;
@@ -119,10 +121,11 @@ async function translate(
     form.append("target_language", message.targetLanguage);
     form.append("image_identifier", message.imageId);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
+    const timer = setTimeout(() => controller.abort(), 200000);
     try {
-      const response = await fetch(API, {
+      const response = await fetch(`${endpoint}/api/v1/translate/image`, {
         method: "POST",
+        headers: settings.apiAccessToken ? { "x-api-key": settings.apiAccessToken } : {},
         body: form,
         signal: controller.signal,
       });
@@ -138,7 +141,7 @@ async function translate(
     } catch (error) {
       if (error instanceof TypeError)
         throw new Error(
-          "Không kết nối được backend. Hãy khởi động FastAPI trên cổng 8000.",
+          `Không kết nối được backend tại ${endpoint}. Kiểm tra URL và quyền truy cập.`,
         );
       throw error;
     } finally {

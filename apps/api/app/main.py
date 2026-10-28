@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import hmac
 import json
 import logging
 import math
@@ -21,7 +22,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Comic Translator API", version="0.1.0")
 MAX_BYTES = int(os.getenv("MAX_IMAGE_BYTES", "15728640"))
@@ -49,6 +50,8 @@ class Region(BaseModel):
     id: str
     type: Literal["speech", "thought", "caption", "sound", "other"]
     bbox: Box
+    textBBox: Box | None = None
+    bubbleBBox: Box | None = None
     originalText: str
     translatedText: str
     confidence: float = Field(ge=0, le=1)
@@ -75,6 +78,8 @@ class GeminiRegion(BaseModel):
     id: str
     type: Literal["speech", "thought", "caption", "sound", "other"]
     bbox: GeminiBox
+    textBBox: GeminiBox | None = None
+    bubbleBBox: GeminiBox | None = None
     originalText: str
     translatedText: str
     confidence: float
@@ -123,10 +128,15 @@ def validated_regions(raw_regions: object) -> list[Region]:
             if not isinstance(raw, dict):
                 raise ValueError("region must be an object")
             box = normalize_box(raw.get("bbox"))
+            text_box = normalize_box(raw.get("textBBox")) if raw.get("textBBox") else box
+            try:
+                bubble_box = normalize_box(raw.get("bubbleBBox")) if raw.get("bubbleBBox") else None
+            except (ValidationError, ValueError, TypeError):
+                bubble_box = None
             confidence = raw.get("confidence")
             if isinstance(confidence, (int, float)) and 1 < confidence <= 100:
                 confidence /= 100
-            region = Region.model_validate({**raw, "bbox": box, "confidence": confidence})
+            region = Region.model_validate({**raw, "bbox": box, "textBBox": text_box, "bubbleBBox": bubble_box, "confidence": confidence})
             if not region.translatedText.strip():
                 raise ValueError("translation is empty")
             accepted.append(region)
@@ -161,6 +171,12 @@ async def internal_error(_request: Request, error: Exception):
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
     if request.url.path.startswith("/api/v1/translate"):
+        expected_token = os.getenv("API_ACCESS_TOKEN", "")
+        if os.getenv("K_SERVICE") and not expected_token:
+            return JSONResponse({"error": {"code": "missing_api_token", "message": "API access token is not configured"}}, status_code=503)
+        supplied_token = request.headers.get("x-api-key", "")
+        if expected_token and not hmac.compare_digest(supplied_token, expected_token):
+            return JSONResponse({"error": {"code": "unauthorized", "message": "Invalid API access token"}}, status_code=401)
         client = request.client.host if request.client else "unknown"
         now = time.monotonic()
         calls = CALLS[client]
@@ -200,10 +216,14 @@ def ask_gemini(image: bytes, source: str, target: str, context: str) -> dict:
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=types.HttpOptions(timeout=TIMEOUT * 1000))
     prompt = (
         "Read all visible comic dialogue, captions, thoughts and sound effects. "
+        "Return one region per complete speech bubble, not one region per OCR line or word. "
+        "For each region, bbox and textBBox cover only the printed text. "
+        "bubbleBBox covers the interior of the whole speech bubble if its boundary is clear; otherwise null. "
         "Return every text region using the supplied JSON schema. Type must be speech, thought, "
         "caption, sound, or other. bbox must be an object with x, y, width, and height as "
         "decimal fractions between 0 and 1; x and y are the top-left corner. "
         "Width and height are box sizes, not right/bottom edges; x+width and y+height must be at most 1. "
+        "Translate into natural Vietnamese sentence case when target is vi, not all uppercase. "
         "Preserve names, pronouns, tone, punctuation and reading order. "
         "Do not invent unreadable dialogue: set uncertain=true and leave unclear text empty. "
         f"Source language: {source}; target language: {target}. Context: {context[:1000]}"

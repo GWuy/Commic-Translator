@@ -17,11 +17,17 @@ const languages = [
 ];
 export function App() {
   const [settings, setSettings] = useState<Settings>(defaults);
+  const [apiUrl, setApiUrl] = useState(defaults.apiBaseUrl);
+  const [apiToken, setApiToken] = useState("");
   const [site, setSite] = useState("");
   const [origins, setOrigins] = useState<string[]>([]);
   const [status, setStatus] = useState("Sẵn sàng");
   useEffect(() => {
-    getSettings().then(setSettings);
+    getSettings().then((saved) => {
+      setSettings(saved);
+      setApiUrl(saved.apiBaseUrl);
+      setApiToken(saved.apiAccessToken);
+    });
     const interval = setInterval(() => {
       chrome.runtime.sendMessage({ type: "STATUS" }, (response) => {
         if (
@@ -103,6 +109,34 @@ export function App() {
       response?.ok ? "Đã xóa bộ nhớ đệm." : "Không thể xóa bộ nhớ đệm.",
     );
   }
+  async function saveApi() {
+    let parsed: URL;
+    try {
+      parsed = new URL(apiUrl.trim());
+      if (
+        (parsed.protocol !== "https:" &&
+          !(parsed.protocol === "http:" && ["127.0.0.1", "localhost"].includes(parsed.hostname))) ||
+        parsed.username || parsed.password || parsed.pathname !== "/" ||
+        parsed.search || parsed.hash
+      ) throw new Error("URL không hợp lệ");
+    } catch {
+      setStatus("Nhập URL HTTPS của Cloud Run, hoặc URL localhost hợp lệ.");
+      return;
+    }
+    const baseUrl = parsed.origin;
+    try {
+      const granted = await chrome.permissions.request({ origins: [`${baseUrl}/*`] });
+      if (!granted) {
+        setStatus("Chưa cấp quyền kết nối API.");
+        return;
+      }
+      await update({ apiBaseUrl: baseUrl, apiAccessToken: apiToken.trim() });
+      setApiUrl(baseUrl);
+      setStatus("Đã lưu kết nối API.");
+    } catch (error) {
+      setStatus(String(error));
+    }
+  }
   return (
     <main>
       <header>
@@ -172,8 +206,9 @@ export function App() {
               update({ displayMode: e.target.value as Settings["displayMode"] })
             }
           >
-            <option value="cover">Che chữ gốc</option>
-            <option value="label">Nhãn dịch</option>
+            <option value="clean">Bong bóng sạch</option>
+            <option value="subtle">Lớp phủ nhẹ</option>
+            <option value="hover">Hiện khi chạm</option>
           </select>
         </label>
         <label className="line">
@@ -243,6 +278,18 @@ export function App() {
           />
         </label>
       </section>
+      <section>
+        <div className="sectionTitle">KẾT NỐI API</div>
+        <label className="apiField">
+          URL backend
+          <input type="url" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} placeholder="https://...run.app" />
+        </label>
+        <label className="apiField">
+          Khóa truy cập API
+          <input type="password" value={apiToken} onChange={(e) => setApiToken(e.target.value)} placeholder="Để trống khi chạy local" />
+        </label>
+        <div className="actions"><button onClick={saveApi}>Lưu kết nối</button></div>
+      </section>
       <div className="actions">
         <button onClick={grant}>Cấp quyền ảnh</button>
         <button className="secondary" onClick={clear}>
@@ -250,7 +297,7 @@ export function App() {
         </button>
       </div>
       <p className="notice">
-        Ảnh truyện được gửi tới backend trên máy bạn và Gemini khi bật dịch. Di
+        Ảnh truyện được gửi tới backend đã chọn và Gemini khi bật dịch. Di
         chuột hoặc nhấp vào bản dịch để xem chữ gốc.
       </p>
       <p className="status">{status}</p>

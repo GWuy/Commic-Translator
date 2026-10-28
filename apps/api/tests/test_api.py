@@ -22,6 +22,23 @@ def test_invalid_image():
     assert response.json()["error"]["code"] == "invalid_image"
 
 
+def test_cloud_api_token_required(monkeypatch):
+    monkeypatch.setenv("API_ACCESS_TOKEN", "server-secret")
+    missing = client.post("/api/v1/translate/image")
+    wrong = client.post("/api/v1/translate/image", headers={"x-api-key": "wrong"})
+    accepted = client.post("/api/v1/translate/image", headers={"x-api-key": "server-secret"})
+    assert missing.status_code == wrong.status_code == 401
+    assert accepted.status_code == 422
+
+
+def test_cloud_api_fails_closed_without_token(monkeypatch):
+    monkeypatch.setenv("K_SERVICE", "comic-translator-api")
+    monkeypatch.delenv("API_ACCESS_TOKEN", raising=False)
+    response = client.post("/api/v1/translate/image")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "missing_api_token"
+
+
 def test_translation(monkeypatch):
     monkeypatch.setattr("app.main.ask_gemini", lambda *_: {"sourceLanguage": "ja", "regions": [{"id": "1", "type": "speech", "bbox": {"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.2}, "originalText": "こんにちは", "translatedText": "Xin chào", "confidence": 0.9, "readingOrder": 1}]})
     output = io.BytesIO()
@@ -29,6 +46,7 @@ def test_translation(monkeypatch):
     response = client.post("/api/v1/translate/image", data={"image_identifier": "test", "target_language": "vi"}, files={"image": ("comic.png", output.getvalue(), "image/png")})
     assert response.status_code == 200
     assert response.json()["regions"][0]["translatedText"] == "Xin chào"
+    assert response.json()["regions"][0]["textBBox"] == response.json()["regions"][0]["bbox"]
 
 
 def test_rejects_out_of_bounds_ai_result(monkeypatch):

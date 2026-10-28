@@ -21,7 +21,7 @@ export function cacheKey(
   target: string,
   modelVersion: string,
 ): string {
-  return JSON.stringify([modelVersion, "pipeline-1", url, source, target]);
+  return JSON.stringify([modelVersion, "pipeline-2", url, source, target]);
 }
 export async function getCached(key: string): Promise<Translation | undefined> {
   const found = memory.get(key);
