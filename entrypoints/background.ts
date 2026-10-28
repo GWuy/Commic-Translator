@@ -126,7 +126,6 @@ async function translate(
     try {
       const response = await fetch(`${endpoint}/api/v1/translate/image`, {
         method: "POST",
-        headers: settings.apiAccessToken ? { "x-api-key": settings.apiAccessToken } : {},
         body: form,
         signal: controller.signal,
       });

@@ -70,5 +70,5 @@ If Gemini fails, run `python scripts/check_gemini.py` from `apps/api` to see the
 - Gemini bounding boxes are approximate. For best placement, the backend should eventually replace Gemini's estimated `bubbleBBox` with a dedicated bubble detector while retaining `textBBox` from OCR. Old cached responses without `bubbleBBox` use a tight text-only fallback.
 - Some authenticated or anti-hotlinking hosts reject extension downloads. The extension tries capturing pixels from the displayed image; browsers can block this for cross-origin images without CORS permission.
 - For downloaded HTTP images, cache identity uses the resolved URL, so changed content at the same URL may reuse an old translation until cache expiry or manual clearing. Captured images use a content hash.
-- The backend uses an in-process per-IP rate limit. Cloud Run deployment adds a shared API token and HTTPS, but public multi-user use still needs per-user authentication and persistent rate limiting.
+- The backend uses an in-process per-IP rate limit. Hosted deployments expose the translation API publicly; multi-user use needs authentication and persistent rate limiting.
 - The extension handles `<img>` elements. CSS background images, canvas readers and PDF pages are outside this MVP.

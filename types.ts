@@ -36,7 +36,6 @@ export type Translation = z.infer<typeof translationSchema>;
 export interface Settings {
   enabled: boolean;
   apiBaseUrl: string;
-  apiAccessToken: string;
   sourceLanguage: string;
   targetLanguage: string;
   debounceMs: number;

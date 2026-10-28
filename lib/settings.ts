@@ -3,7 +3,6 @@ import type { Settings } from "../types";
 export const defaults: Settings = {
   enabled: false,
   apiBaseUrl: "http://127.0.0.1:8000",
-  apiAccessToken: "",
   sourceLanguage: "auto",
   targetLanguage: "vi",
   debounceMs: 1200,

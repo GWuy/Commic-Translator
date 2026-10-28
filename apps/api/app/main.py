@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import hmac
 import json
 import logging
 import math
@@ -171,12 +170,6 @@ async def internal_error(_request: Request, error: Exception):
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
     if request.url.path.startswith("/api/v1/translate"):
-        expected_token = os.getenv("API_ACCESS_TOKEN", "")
-        if os.getenv("K_SERVICE") and not expected_token:
-            return JSONResponse({"error": {"code": "missing_api_token", "message": "API access token is not configured"}}, status_code=503)
-        supplied_token = request.headers.get("x-api-key", "")
-        if expected_token and not hmac.compare_digest(supplied_token, expected_token):
-            return JSONResponse({"error": {"code": "unauthorized", "message": "Invalid API access token"}}, status_code=401)
         client = request.client.host if request.client else "unknown"
         now = time.monotonic()
         calls = CALLS[client]

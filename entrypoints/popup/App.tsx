@@ -18,7 +18,6 @@ const languages = [
 export function App() {
   const [settings, setSettings] = useState<Settings>(defaults);
   const [apiUrl, setApiUrl] = useState(defaults.apiBaseUrl);
-  const [apiToken, setApiToken] = useState("");
   const [site, setSite] = useState("");
   const [origins, setOrigins] = useState<string[]>([]);
   const [status, setStatus] = useState("Sẵn sàng");
@@ -26,7 +25,6 @@ export function App() {
     getSettings().then((saved) => {
       setSettings(saved);
       setApiUrl(saved.apiBaseUrl);
-      setApiToken(saved.apiAccessToken);
     });
     const interval = setInterval(() => {
       chrome.runtime.sendMessage({ type: "STATUS" }, (response) => {
@@ -130,7 +128,7 @@ export function App() {
         setStatus("Chưa cấp quyền kết nối API.");
         return;
       }
-      await update({ apiBaseUrl: baseUrl, apiAccessToken: apiToken.trim() });
+      await update({ apiBaseUrl: baseUrl });
       setApiUrl(baseUrl);
       setStatus("Đã lưu kết nối API.");
     } catch (error) {
@@ -283,10 +281,6 @@ export function App() {
         <label className="apiField">
           URL backend
           <input type="url" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} placeholder="https://...run.app" />
-        </label>
-        <label className="apiField">
-          Khóa truy cập API
-          <input type="password" value={apiToken} onChange={(e) => setApiToken(e.target.value)} placeholder="Để trống khi chạy local" />
         </label>
         <div className="actions"><button onClick={saveApi}>Lưu kết nối</button></div>
       </section>
