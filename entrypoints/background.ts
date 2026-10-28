@@ -20,7 +20,7 @@ async function slot<T>(work: () => Promise<T>): Promise<T> {
 async function modelVersion(endpoint: string): Promise<string> {
   if (modelState?.endpoint === endpoint && Date.now() - modelState.checked < 5 * 60_000)
     return modelState.version;
-  let version = "gemini-2.5-flash";
+  let version = "gemini-3.5-flash-lite";
   try {
     const response = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(3000) });
     if (response.ok) {
@@ -31,8 +31,9 @@ async function modelVersion(endpoint: string): Promise<string> {
     }
   } catch {
     const stored = await chrome.storage.local.get("modelVersion");
-    if (stored.modelVersion?.endpoint === endpoint && typeof stored.modelVersion.version === "string")
-      version = stored.modelVersion.version;
+    const previous = stored.modelVersion as { endpoint?: unknown; version?: unknown } | undefined;
+    if (previous?.endpoint === endpoint && typeof previous.version === "string")
+      version = previous.version;
   }
   modelState = { endpoint, version, checked: Date.now() };
   return version;
