@@ -1,0 +1,169 @@
+
+# ========================================
+# COMIC TRANSLATOR - .gitignore
+# WXT + React + TypeScript + FastAPI
+# ========================================
+
+# ----------------------------------------
+# Node.js / Package Managers
+# ----------------------------------------
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.npm/
+
+# ----------------------------------------
+# WXT / Browser Extension
+# ----------------------------------------
+.wxt/
+**/.wxt/
+.output/
+**/.output/
+web-ext-artifacts/
+*.crx
+*.xpi
+
+# ----------------------------------------
+# Build / Distribution
+# ----------------------------------------
+dist/
+**/dist/
+build/
+**/build/
+coverage/
+**/coverage/
+*.tsbuildinfo
+
+# ----------------------------------------
+# Environment Variables / API Keys
+# ----------------------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.template
+.envrc
+.direnv/
+.secrets/
+*.secret
+*.secrets
+
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+secrets/
+credentials.json
+*service-account*.json
+.npmrc
+.pypirc
+
+# ----------------------------------------
+# Python / FastAPI
+# ----------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+.venv/
+venv/
+env/
+ENV/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+htmlcov/
+.coverage
+.coverage.*
+*.egg-info/
+.eggs/
+*.egg
+
+# ----------------------------------------
+# Local Databases / Cache
+# ----------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+.cache/
+cache/
+tmp/
+temp/
+*.tmp
+
+# ----------------------------------------
+# AI / OCR / Model Files
+# ----------------------------------------
+models/
+checkpoints/
+weights/
+
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.ckpt
+
+# ----------------------------------------
+# Temporary Uploaded Images
+# ----------------------------------------
+uploads/
+processed/
+outputs/
+screenshots/
+test-results/
+
+# ----------------------------------------
+# Logs
+# ----------------------------------------
+logs/
+*.log
+
+# ----------------------------------------
+# IDE / Editors
+# ----------------------------------------
+.idea/
+.vscode/
+
+*.swp
+*.swo
+*~
+
+# ----------------------------------------
+# Operating Systems
+# ----------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ----------------------------------------
+# Docker / Local Data
+# ----------------------------------------
+docker-data/
+postgres-data/
+redis-data/
+
+# ----------------------------------------
+# Misc
+# ----------------------------------------
+*.bak
+*.backup
+*.orig
